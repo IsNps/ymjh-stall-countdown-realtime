@@ -131,6 +131,12 @@ const server = http.createServer((req, res) => {
   }
 
   // ---------- API ----------
+  // 服务器时间（供客户端做时钟校准，消除各设备系统时间误差）
+  if (pathname === '/api/time') {
+    res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store' });
+    res.end(JSON.stringify({ t: Date.now() }));
+    return;
+  }
   const m = pathname.match(/^\/api\/room\/([^/]+)(\/.*)?$/);
   if (m) {
     const id = m[1];

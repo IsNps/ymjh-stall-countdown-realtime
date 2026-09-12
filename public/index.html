@@ -452,6 +452,27 @@ function sendOp(op){
   }).catch(()=>setConn(false));
 }
 
+// ===== 服务器时间校准（消除各设备系统时钟差异，保证倒计时秒数一致） =====
+let clockDelta = 0; // 服务器时间 - 本地时间 的估算差值
+function serverNow(){ return Date.now() + clockDelta; }
+async function syncClock(){
+  // 采样 3 次，取往返耗时最小的一次（网络抖动最小时估算最准），按 NTP 方式补偿半个往返
+  let best = null;
+  for(let i=0;i<3;i++){
+    const t0 = Date.now();
+    let r = null;
+    try{ r = await fetch('/api/time', {cache:'no-store'}).then(x=>x.json()); }catch(e){ return; }
+    const t1 = Date.now();
+    const rtt = t1 - t0;
+    const delta = r.t + rtt/2 - t1;
+    if(best === null || rtt < best.rtt) best = {rtt, delta};
+    if(best.rtt < 30) break; // 网络够快，无需继续采样
+  }
+  if(best) clockDelta = best.delta;
+}
+// 每 5 分钟静默重校准一次，防止长时间运行后本地时钟漂移
+setInterval(()=>{ if(roomId) syncClock(); }, 5*60*1000);
+
 // ===== 服务器连接 =====
 function setConn(connected){
   const dot = document.getElementById('connDot');
@@ -464,7 +485,7 @@ function openSSE(){
   eventSource = new EventSource(`/api/room/${roomId}/events`);
   eventSource.onopen = ()=>{
     setConn(true);
-    if(needResync){ needResync = false; fetchSnapshot(); }
+    if(needResync){ needResync = false; syncClock(); fetchSnapshot(); }
   };
   eventSource.onmessage = e=>{
     let msg;
@@ -501,13 +522,14 @@ function fetchSnapshot(){
 }
 
 // ===== 房间加入/切换 =====
-function connectRoom(id){
+async function connectRoom(id){
   roomId = id;
   localStorage.setItem('ccRoomId', id);
   const u = new URL(location.href);
   u.searchParams.set('room', id);
   history.replaceState(null, '', u);
   document.getElementById('roomLabel').textContent = '🏠 房间 ' + id;
+  await syncClock(); // 先校准时钟再渲染，保证倒计时与其他设备一致
   fetch(`/api/room/${id}`)
     .then(r=>{ if(!r.ok) throw new Error('fail'); return r.json(); })
     .then(data=>{
@@ -756,7 +778,7 @@ function renderList(){
   const wrap = document.getElementById('listWrap');
   if(!g){wrap.innerHTML='';return;}
   wrap.innerHTML = '';
-  const now = Date.now() + getOffsetSeconds()*1000;
+  const now = serverNow() + getOffsetSeconds()*1000;
   const unexpired = g.items.filter(it => it.expireTs > now).sort((a,b)=>a.expireTs - b.expireTs);
   const expired = g.items.filter(it => it.expireTs <= now).sort((a,b)=>a.expireTs - b.expireTs);
   const sortedItems = [...unexpired, ...expired];
@@ -834,7 +856,7 @@ function sendItemNotify(itemName){
 }
 
 function tick(){
-  const now = Date.now();
+  const now = serverNow();
   const g = getCurrentGroup();
   if(!g){requestAnimationFrame(tick);return;}
   const offsetMs = getOffsetSeconds() * 1000;
