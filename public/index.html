@@ -201,6 +201,7 @@ hr{border:0;border-top:1px solid #363b48;margin:16px 0;}
 .dot.off{background:#ff5c5c;}
 .conn-bar button{min-height:30px;padding:4px 10px;font-size:12px;border-radius:8px;background:#2f4880;}
 .conn-bar button.link-btn{background:#2b5830;}
+.conn-bar button.danger-btn{background:#782424;}
 
 /* 加入房间遮罩 */
 .join-overlay{
@@ -227,18 +228,23 @@ hr{border:0;border-top:1px solid #363b48;margin:16px 0;}
 .join-card p{font-size:13px;color:#a9b0c2;margin-bottom:14px;}
 .join-actions{display:flex;gap:10px;}
 .join-actions button{flex:1;}
+.recent-wrap{margin-top:14px;}
+.recent-chips{display:flex;gap:6px;flex-wrap:wrap;justify-content:center;}
+.recent-chip{min-height:36px;padding:6px 14px;font-size:14px;background:#323848;border-radius:20px;}
+.recent-chip:active{background:#3b63b7;}
 </style>
 </head>
 <body>
 <div class="join-overlay" id="joinOverlay">
   <div class="join-card">
     <h2>⏱ 摊位倒计时</h2>
-    <p>多人实时共享。输入房间号加入队友的房间，或新建房间后把邀请链接分享给队友。</p>
+    <p>输入房间号后点任一按钮都会进入同一房间（相同房间号 = 同一房间）；<br>输入留空点【随机新建】才生成新房间号。</p>
     <input id="roomInput" placeholder="房间号（3-32位字母/数字）" autocapitalize="off" autocorrect="off">
     <div class="join-actions">
-      <button class="primary" onclick="joinFromInput()">加入房间</button>
-      <button onclick="createRoom()">新建房间</button>
+      <button class="primary" onclick="joinFromInput()">进入房间</button>
+      <button onclick="createRoom()">随机新建</button>
     </div>
+    <div class="recent-wrap" id="recentWrap"></div>
   </div>
 </div>
 
@@ -246,6 +252,7 @@ hr{border:0;border-top:1px solid #363b48;margin:16px 0;}
   <span class="room-name" id="roomLabel"></span>
   <span class="dot" id="connDot"></span><span id="connText">连接中…</span>
   <button class="link-btn" onclick="copyInvite()">复制邀请链接</button>
+  <button class="danger-btn" onclick="destroyRoom()">解散房间</button>
   <button onclick="leaveRoom()">换房间</button>
 </div>
 
@@ -467,6 +474,11 @@ function openSSE(){
       if(groupList.length === 0){ sendOp({type:'init', state:[defaultGroup()]}); return; }
       ensureCurrent();
       renderAll();
+    }else if(msg.type === 'destroyed'){
+      if(eventSource) eventSource.close();
+      localStorage.removeItem('ccRoomId');
+      alert('该房间已被解散');
+      location.href = '/';
     }else if(msg.type === 'op'){
       if(msg.op && msg.op.clientId !== myClientId){
         applyOpLocal(msg.op);
@@ -508,6 +520,7 @@ function connectRoom(id){
         }).catch(()=>{});
       }
       currentGroupId = groupList[0].id;
+      pushHistory(id);
       renderAll();
       openSSE();
       document.getElementById('joinOverlay').classList.remove('show');
@@ -518,10 +531,36 @@ function connectRoom(id){
       showJoin(id);
     });
 }
+// ===== 最近使用的房间（历史记录，方便再次进入） =====
+function getHistory(){
+  try{ return JSON.parse(localStorage.getItem('ccRoomHistory')) || []; }catch(e){ return []; }
+}
+function pushHistory(id){
+  let h = getHistory().filter(x=>x !== id);
+  h.unshift(id);
+  localStorage.setItem('ccRoomHistory', JSON.stringify(h.slice(0, 6)));
+}
+function renderHistory(){
+  const wrap = document.getElementById('recentWrap');
+  const h = getHistory();
+  wrap.innerHTML = h.length
+    ? '<div class="small-note" style="margin:0 0 6px;">最近使用（点击直接进入）：</div><div class="recent-chips"></div>'
+    : '';
+  if(!h.length) return;
+  const chips = wrap.querySelector('.recent-chips');
+  h.forEach(id=>{
+    const chip = document.createElement('button');
+    chip.className = 'recent-chip';
+    chip.textContent = id;
+    chip.onclick = ()=>connectRoom(id);
+    chips.appendChild(chip);
+  });
+}
 function showJoin(prefill){
   const overlay = document.getElementById('joinOverlay');
   overlay.classList.add('show');
   if(prefill) document.getElementById('roomInput').value = prefill;
+  renderHistory();
 }
 function joinFromInput(){
   const v = document.getElementById('roomInput').value.trim();
@@ -532,10 +571,34 @@ function joinFromInput(){
   connectRoom(v);
 }
 function createRoom(){
+  // 输入框有内容时优先使用输入的房间号（相同房间号永远进入同一房间）
+  const v = document.getElementById('roomInput').value.trim();
+  if(v){
+    if(!/^[A-Za-z0-9_-]{3,32}$/.test(v)){
+      alert('房间号需为 3-32 位字母/数字/-/_');
+      return;
+    }
+    if(confirm(`输入框中已有房间号【${v}】，直接进入该房间？\n（取消则忽略输入，随机生成新房间号）`)){
+      connectRoom(v);
+      return;
+    }
+  }
   const chars = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789';
   let code = '';
   for(let i=0;i<6;i++) code += chars[Math.floor(Math.random()*chars.length)];
   connectRoom(code);
+}
+// ===== 解散房间（双确认，删除数据并踢出所有人） =====
+function destroyRoom(){
+  if(!confirm(`⚠️ 解散房间【${roomId}】将删除房间内所有数据，房间内所有人都会被踢出，不可恢复！确定继续？`))return;
+  if(!confirm('再次确认：真的要解散这个房间吗？此操作无法撤销！'))return;
+  fetch(`/api/room/${roomId}/destroy`, {method:'POST'}).catch(()=>{});
+  // 服务端会广播 destroyed 消息，由统一处理逻辑跳回加入页
+  setTimeout(()=>{
+    localStorage.removeItem('ccRoomId');
+    if(eventSource) eventSource.close();
+    location.href = '/';
+  }, 1000);
 }
 function copyInvite(){
   const link = location.origin + '/?room=' + roomId;

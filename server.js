@@ -181,6 +181,19 @@ const server = http.createServer((req, res) => {
       });
       return;
     }
+    // 解散房间：广播 destroyed → 断开所有人 → 删除内存与文件
+    if (rest === '/destroy' && req.method === 'POST') {
+      broadcast(room, { type: 'destroyed' });
+      for (const res of room.clients) { try { res.end(); } catch (e) { /* ignore */ } }
+      room.clients.clear();
+      clearTimeout(room.saveTimer); // 取消未落盘的防抖写入，避免文件被"复活"
+      rooms.delete(id);
+      fs.rm(roomFile(id), { force: true }, () => {});
+      console.log('[destroy] 房间已解散:', id);
+      res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' });
+      res.end(JSON.stringify({ ok: true }));
+      return;
+    }
     res.writeHead(404).end('not found');
     return;
   }
@@ -196,6 +209,30 @@ const server = http.createServer((req, res) => {
     res.end(buf);
   });
 });
+
+/** 自动清理长期未使用的房间（默认 30 天未写入即删除），启动时执行一次，之后每天一次 */
+const STALE_MS = 30 * 24 * 3600 * 1000;
+function cleanupStaleRooms() {
+  fs.readdir(DATA_DIR, (err, files) => {
+    if (err) return;
+    const now = Date.now();
+    for (const f of files) {
+      if (!f.endsWith('.json')) continue;
+      const fp = path.join(DATA_DIR, f);
+      fs.stat(fp, (e, st) => {
+        if (e) return;
+        if (now - st.mtimeMs < STALE_MS) return;
+        const id = f.slice(0, -5);
+        if (!ROOM_ID_RE.test(id)) return;
+        const room = rooms.get(id);
+        if (room && room.clients.size > 0) return; // 仍有人在线，跳过
+        fs.rm(fp, { force: true }, () => console.log('[cleanup] 已清理过期房间:', id));
+      });
+    }
+  });
+}
+cleanupStaleRooms();
+setInterval(cleanupStaleRooms, 24 * 3600 * 1000);
 
 server.listen(PORT, () => {
   console.log(`摊位倒计时 · 多人实时版 已启动: http://localhost:${PORT}`);
