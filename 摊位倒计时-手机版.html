@@ -1,0 +1,569 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>摊位倒计时</title>
+<link rel="manifest" href="data:application/json;base64,eyJuYW1lIjoi5LqV5YiG57G754K55Yiw5pyN5YqhIiwic2hvcnRfbmFtZSI6IuW8oOWbveS4reWbveS6p+WcsSIsImRlc2NyaXB0aW9uIjoi5LqV5YiG57G754K55Yiw5pyN5Yqh5LqG5YiG57G7Iiwic3RhcnRfdXJsIjoiLiIsImRpc3BsYXkiOiJzdGFuZGFsb25lIiwiYmFja2dyb3VuZENvbG9yIjoiIzE1MTgyMCIsInRoZW1lQ29sb3IiOiIjM2I2M2I3IiwiaWNvbnMiOlt7InNyYyI6ImRhdGE6aW1hZ2Uvc3ZnK3htbCw8c3ZnIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyIgdmlld0JveD0iMCAwIDEwMCAxMDAiPjxjaXJjbGUgY3g9IjUwIiBjeT0iNTAiIHI9IjQ1IiBmaWxsPSIjM2I2M2I3Ii8+PHRleHQgeD0iNTAiIHk9IjYwIiBmb250LWZhbWlseT0iQXJpYWwiIGZvbnQtc2l6ZT0iNDAiIGZpbGw9IiNmZmYiIHRleHQtYW5jaG9yPSJtaWRkbGUiPueUqOaItjwvdGV4dD48L3N2Zz4iLCJzaXplcyI6IjE5MngxOTIiLCJ0eXBlIjoiaW1hZ2Uvc3ZnK3htbCJ9XX0=">
+<meta name="theme-color" content="#3b63b7">
+<style>
+*{box-sizing:border-box;margin:0;padding:0;font-family:system-ui, -apple-system, BlinkMacSystemFont, sans-serif;}
+body{
+  background:#151820;
+  color:#e6e8ef;
+  padding:12px;
+  line-height:1.5;
+}
+.card{
+  background:#212633;
+  padding:16px;
+  border-radius:14px;
+  margin-bottom:14px;
+  box-shadow:0 4px 12px rgba(0,0,0,0.25);
+  position:relative;
+}
+.group-header-row{
+  display:flex;
+  gap:10px;
+  align-items:center;
+  justify-content:space-between;
+  margin-bottom:10px;
+}
+.group-header-left{
+  display:flex;
+  gap:10px;
+}
+.group-header-row button{
+  padding:8px 12px;
+  font-size:14px;
+  border:none;
+  border-radius:8px;
+  cursor:pointer;
+  min-height:36px;
+}
+.btn-add-group{background:#2b5830;}
+.btn-del-group{background:#782424;}
+.clear-all-top{
+  background:#6b1818;
+  color:#fff;
+}
+.btn-export{background:#2f4880;}
+.btn-import{background:#60421b;}
+.collapse-btn{
+  width:100%;
+  text-align:left;
+  background:#2b3140;
+  margin:0;
+}
+.collapse-btn:active{background:#353c4f;}
+.panel-content{
+  overflow:hidden;
+  transition:max-height 0.3s ease;
+}
+.panel-fold{
+  max-height:0;
+}
+.panel-unfold{
+  max-height:2000px;
+}
+
+/* 分组标签区域 */
+.group-tab{
+  display:flex;
+  gap:8px;
+  overflow-x:auto;
+  padding:4px 0 8px;
+  -webkit-overflow-scrolling:touch;
+}
+.group-tab::-webkit-scrollbar{height:4px;}
+.group-tab::-webkit-scrollbar-thumb{background:#444;border-radius:4px;}
+.group-tab button{
+  flex:0 0 auto;
+  padding:10px 12px;
+  background:#323848;
+  border:none;
+  border-radius:10px;
+  color:#eef;
+  font-size:14px;
+  min-height:44px;
+  cursor:pointer;
+}
+.group-tab button.active{background:#3b63b7;box-shadow:0 0 0 1px rgba(80,120,220,0.4);}
+
+button{
+  min-height:44px;
+  padding:10px 12px;
+  border:none;
+  border-radius:10px;
+  color:#fff;
+  font-size:15px;
+  cursor:pointer;
+}
+button.primary{background:#3b63b7;}
+button.danger{background:#782424;}
+button.offset-btn{
+  background:#2f4880;
+  min-width:46px;
+  font-size:16px;
+}
+
+input{
+  width:100%;
+  background:#1b202b;
+  border:1px solid #444a58;
+  color:#fff;
+  padding:12px 10px;
+  border-radius:10px;
+  font-size:16px;
+  margin:6px 0;
+  outline:none;
+}
+input:focus{border-color:#4874d0;box-shadow:0 0 0 2px rgba(72,116,208,0.25);}
+/* 时分秒组件行 */
+.hms-row{
+  display:flex;
+  gap:6px;
+}
+.hms-row input{
+  margin:6px 0;
+  text-align:center;
+}
+.hms-row input:nth-child(1){flex:1;}
+.hms-row input:nth-child(3){flex:1;}
+.hms-row input:nth-child(5){flex:1;}
+.hms-row span{
+  line-height:calc(16px + 24px);
+  color:#ccc;
+}
+.offset-wrap{
+  display:flex;
+  gap:6px;
+  align-items:center;
+  margin:8px 0;
+}
+.offset-wrap input{width:100px;margin:0;}
+.tip-text{
+  font-size:13px;
+  color:#a9b0c2;
+  display:block;
+  margin:6px 0 10px;
+  white-space:nowrap;
+  overflow:hidden;
+  text-overflow:ellipsis;
+}
+hr{border:0;border-top:1px solid #363b48;margin:16px 0;}
+
+.item-row{
+  padding:14px;
+  border-bottom:1px solid #333846;
+  border-radius:10px;
+  background:#262c3a;
+  margin-bottom:10px;
+  transition:background 0.3s;
+  -webkit-user-select:none;user-select:none;
+}
+.item-row.warning{background:rgba(180,60,60,0.25);}
+.item-name{font-size:16px;margin-bottom:4px;}
+.time-cell{
+  font-family:Consolas,monospace;
+  font-size:28px;
+  font-weight:bold;
+  color:#fff;
+  margin:6px 0;
+}
+.time-cell.expire{color:#ff5c5c;}
+.expire-time-text{font-size:13px;color:#88c8ff;}
+.item-sub-info{font-size:13px;color:#aaa;margin:4px 0 8px;}
+.small-note{
+  font-size:12px;
+  color:#a9b0c2;
+}
+@media (min-width:768px){
+  body{max-width:720px;margin:20px auto;}
+}
+</style>
+</head>
+<body>
+<div class="card">
+    <div class="small-note" style="margin:4px 0;">（+新增分组，-删除分组，导出复制，导入粘贴）</div>
+  <div class="group-header-row">
+    <div class="group-header-left">
+      <button class="btn-add-group" onclick="addNewGroup()">+</button>
+      <button class="btn-del-group" onclick="deleteCurrentGroup()">-</button>
+      <button class="btn-export" onclick="exportData()">导出</button>
+      <button class="btn-import" onclick="importData()">导入</button>
+    </div>
+    <button class="clear-all-top" onclick="clearAllData()">清空全部</button>
+  </div>
+  <div class="small-note" style="margin:4px 0;">（长按分组标签修改名称）</div>
+  <div class="group-tab" id="groupTabWrap"></div>
+</div>
+
+<div class="card">
+  <button class="collapse-btn" id="configToggle">🔧 配置面板<span class="small-note">（点击展开）</span></button>
+  <div class="panel-content panel-fold" id="configPanel">
+    <hr>
+    <h3>基准时间配置</h3>
+    <input id="baseDate" type="date">
+    <div class="hms-row">
+      <input id="baseH" type="number" min="0" max="23" placeholder="时">
+      <span>:</span>
+      <input id="baseM" type="number" min="0" max="59" placeholder="分">
+      <span>:</span>
+      <input id="baseS" type="number" min="0" max="59" placeholder="秒">
+    </div>
+
+    <div class="offset-wrap">
+      <button class="offset-btn" onclick="adjustOffset(-1)">-1</button>
+      <input id="timeOffset" type="number" inputmode="numeric" placeholder="偏移秒" value="0">
+      <button class="offset-btn" onclick="adjustOffset(1)">+1</button>
+    </div>
+    <span class="tip-text">偏移：正数倒计时变快，负数变慢</span>
+    <button class="primary" onclick="reCalcAllExpire()">更新基准，重算到期</button>
+
+    <hr>
+    <h3>添加物品</h3>
+    <input id="itemName" placeholder="物品名称" value="流黎缀珠">
+    <div class="hms-row">
+      <input id="itemH" type="number" min="0" max="999" value="23" placeholder="时">
+      <span>:</span>
+      <input id="itemM" type="number" min="0" max="59" value="58" placeholder="分">
+      <span>:</span>
+      <input id="itemS" type="number" min="0" max="59" value="28" placeholder="秒">
+    </div>
+    <button class="primary" onclick="addItem()">添加物品</button>
+  </div>
+</div>
+
+<div class="card">
+  <h3>倒计时列表<span class="small-note">（快到期↑，已到期↓，长按删除）</span></h3>
+  <div id="listWrap"></div>
+</div>
+
+<script>
+let groupList = [];
+let currentGroupId = null;
+const WARNING_SEC = 300;
+let notifiedItemIds = new Set();
+let configOpen = false;
+let needReorder = false;
+
+const toggleBtn = document.getElementById('configToggle');
+const panel = document.getElementById('configPanel');
+toggleBtn.onclick = function(){
+  configOpen = !configOpen;
+  if(configOpen){
+    panel.classList.remove('panel-fold');
+    panel.classList.add('panel-unfold');
+    toggleBtn.innerHTML = '🔧 配置面板<span class="small-note">（点击收起）</span>';
+  }else{
+    panel.classList.add('panel-fold');
+    panel.classList.remove('panel-unfold');
+    toggleBtn.innerHTML = '🔧 配置面板<span class="small-note">（点击展开）</span>';
+  }
+}
+
+// 获取当前本地日期，用于新建分组默认基准时间
+function getNowDateStr(){
+  const d = new Date();
+  const y = d.getFullYear();
+  const mo = String(d.getMonth()+1).padStart(2,'0');
+  const day = String(d.getDate()).padStart(2,'0');
+  return `${y}-${mo}-${day}`;
+}
+function getNowHMS(){
+  const d = new Date();
+  return {h:d.getHours(),m:d.getMinutes(),s:d.getSeconds()};
+}
+
+function hms2sec(h,m,s){
+  return h*3600 + m*60 + s;
+}
+function sec2hms(totalSec){
+  const h = Math.floor(totalSec / 3600);
+  const m = Math.floor((totalSec % 3600)/60);
+  const s = totalSec % 60;
+  return `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`;
+}
+function formatTs(ts){
+  const d = new Date(ts);
+  const y = d.getFullYear();
+  const mo = String(d.getMonth()+1).padStart(2,'0');
+  const day = String(d.getDate()).padStart(2,'0');
+  const h = String(d.getHours()).padStart(2,'0');
+  const mi = String(d.getMinutes()).padStart(2,'0');
+  const s = String(d.getSeconds()).padStart(2,'0');
+  return `${y}-${mo}-${day} ${h}:${mi}:${s}`;
+}
+function getCurrentGroup(){return groupList.find(g=>g.id === currentGroupId);}
+
+function renderGroupTabs(){
+  const wrap = document.getElementById('groupTabWrap');
+  wrap.innerHTML = '';
+  groupList.forEach(g=>{
+    const btn = document.createElement('button');
+    btn.textContent = g.name;
+    if(g.id === currentGroupId) btn.classList.add('active');
+    let pressTimer;
+    btn.onclick = ()=>switchGroup(g.id);
+    //长按重命名分组
+    btn.addEventListener('touchstart',()=>{
+      pressTimer = setTimeout(()=>{
+        const newName = prompt("修改分组名称", g.name);
+        if(newName?.trim()){
+          g.name = newName.trim();
+          saveToLocal();
+          renderGroupTabs();
+        }
+      },600);
+    })
+    btn.addEventListener('touchend',()=>clearTimeout(pressTimer));
+    btn.addEventListener('touchmove',()=>clearTimeout(pressTimer));
+    btn.addEventListener('mousedown',()=>{
+      pressTimer = setTimeout(()=>{
+        const newName = prompt("修改分组名称", g.name);
+        if(newName?.trim()){
+          g.name = newName.trim();
+          saveToLocal();
+          renderGroupTabs();
+        }
+      },600);
+    })
+    btn.addEventListener('mouseup',()=>clearTimeout(pressTimer));
+    btn.addEventListener('mouseleave',()=>clearTimeout(pressTimer));
+    wrap.appendChild(btn);
+  })
+}
+function adjustOffset(delta){
+  const input = document.getElementById('timeOffset');
+  let val = Number(input.value)||0;
+  input.value = val + delta;
+}
+function switchGroup(groupId){
+  currentGroupId = groupId;
+  const g = getCurrentGroup();
+  if(!g)return;
+  document.getElementById('baseDate').value = g.baseDate;
+  document.getElementById('baseH').value = g.baseH;
+  document.getElementById('baseM').value = g.baseM;
+  document.getElementById('baseS').value = g.baseS;
+  document.getElementById('timeOffset').value = g.offset??0;
+  renderGroupTabs();renderList();
+}
+function addNewGroup(){
+  const newId = Date.now();
+  const nowDate = getNowDateStr();
+  const nowHms = getNowHMS();
+  groupList.push({
+    id:newId,name:`分组${groupList.length+1}`,
+    baseDate: nowDate,
+    baseH: nowHms.h,
+    baseM: nowHms.m,
+    baseS: nowHms.s,
+    offset:0,items:[]
+  });
+  saveToLocal();switchGroup(newId);
+}
+function deleteCurrentGroup(){
+  if(groupList.length <=1){alert("至少保留1个分组");return;}
+  if(!confirm("⚠️确定要删除当前分组及其所有倒计时条目？不可恢复！")) return;
+  groupList = groupList.filter(g=>g.id!==currentGroupId);
+  saveToLocal();switchGroup(groupList[0].id);
+}
+function getBaseTimestamp(){
+  const g = getCurrentGroup();
+  const d = new Date(g.baseDate);
+  d.setHours(Number(g.baseH), Number(g.baseM), Number(g.baseS), 0);
+  return d.getTime();
+}
+function getOffsetSeconds(){return Number(document.getElementById('timeOffset').value)||0;}
+function saveToLocal(){localStorage.setItem('multiGroupCountdown',JSON.stringify(groupList));}
+function loadFromLocal(){
+  const raw = localStorage.getItem('multiGroupCountdown');
+  if(raw) try{groupList=JSON.parse(raw);}catch(e){}
+  if(groupList.length===0) addNewGroup();
+  else switchGroup(groupList[0].id);
+}
+function reCalcAllExpire(){
+  const g = getCurrentGroup();
+  g.baseDate = document.getElementById('baseDate').value;
+  g.baseH = Number(document.getElementById('baseH').value)||0;
+  g.baseM = Number(document.getElementById('baseM').value)||0;
+  g.baseS = Number(document.getElementById('baseS').value)||0;
+  g.offset = getOffsetSeconds();
+  const baseTs = getBaseTimestamp();
+  g.items.forEach(it=>{
+    const sec = hms2sec(it.h,it.m,it.s);
+    it.expireTs = baseTs + sec*1000;
+  })
+  saveToLocal();renderList();
+  alert("基准更新完成");
+}
+function addItem(){
+  const g = getCurrentGroup();
+  const baseDateVal = document.getElementById('baseDate').value.trim();
+  const baseHVal = document.getElementById('baseH').value;
+  const baseMVal = document.getElementById('baseM').value;
+  const baseSVal = document.getElementById('baseS').value;
+  //校验基准时间不能为空
+  if(!baseDateVal || baseHVal === '' || baseMVal === '' || baseSVal === ''){
+    alert("基准时间未完整填写，无法添加物品");
+    return;
+  }
+  const name = document.getElementById('itemName').value.trim();
+  const h = Number(document.getElementById('itemH').value)||0;
+  const m = Number(document.getElementById('itemM').value)||0;
+  const s = Number(document.getElementById('itemS').value)||0;
+  if(!name) {
+    alert("请填写物品名称");
+    return;
+  }
+  const baseTs = getBaseTimestamp();
+  const sec = hms2sec(h,m,s);
+  const expireTs = baseTs + sec*1000;
+  g.items.push({name,h,m,s,expireTs,id:Date.now()});
+  saveToLocal();renderList();
+}
+function renderList(){
+  const g = getCurrentGroup();
+  const wrap = document.getElementById('listWrap');
+  wrap.innerHTML = '';
+  const now = Date.now() + getOffsetSeconds()*1000;
+  const unexpired = g.items.filter(it => it.expireTs > now).sort((a,b)=>a.expireTs - b.expireTs);
+  const expired = g.items.filter(it => it.expireTs <= now).sort((a,b)=>a.expireTs - b.expireTs);
+  const sortedItems = [...unexpired, ...expired];
+
+  sortedItems.forEach(it=>{
+    const div = document.createElement('div');
+    div.className = 'item-row';
+    div.dataset.itemId = it.id;
+    const remainText = sec2hms(hms2sec(it.h,it.m,it.s));
+    div.innerHTML = `
+      <div class="item-name">${it.name}</div>
+      <div class="time-cell" id="it-${it.id}">--:--:--</div>
+      <div class="expire-time-text">到期：${formatTs(it.expireTs)}</div>
+      <div class="item-sub-info">配置剩余：${remainText}</div>
+    `;
+    let pressTimer=null;
+    div.addEventListener('touchstart',()=>pressTimer=setTimeout(()=>{
+      if(confirm(`确定删除【${it.name}】？`)) delItem(it.id);
+    },600));
+    div.addEventListener('touchend',()=>clearTimeout(pressTimer));
+    div.addEventListener('touchmove',()=>clearTimeout(pressTimer));
+    div.addEventListener('mousedown',()=>pressTimer=setTimeout(()=>{
+      if(confirm(`确定删除【${it.name}】？`)) delItem(it.id);
+    },600));
+    div.addEventListener('mouseup',()=>clearTimeout(pressTimer));
+    div.addEventListener('mouseleave',()=>clearTimeout(pressTimer));
+    wrap.appendChild(div);
+  })
+}
+function delItem(itemId){
+  const g = getCurrentGroup();
+  g.items = g.items.filter(x=>x.id!==itemId);
+  notifiedItemIds.delete(itemId);
+  saveToLocal();renderList();
+}
+function clearAllData(){
+  if(!confirm("⚠️清空全部分组与倒计时数据，不可恢复！"))return;
+  localStorage.removeItem('multiGroupCountdown');
+  groupList=[];notifiedItemIds.clear();
+  loadFromLocal();alert("全部数据已清空");
+}
+
+// ========== 复制粘贴导入导出 ==========
+async function exportData(){
+  try{
+    const jsonStr = JSON.stringify(groupList,null,2);
+    await navigator.clipboard.writeText(jsonStr);
+    alert("✅导出成功！数据已复制到剪贴板，直接粘贴保存到备忘录即可备份");
+  }catch(err){
+    //剪贴板权限降级，弹窗显示文本手动复制
+    prompt("复制下方全部文本进行备份",JSON.stringify(groupList,null,2));
+  }
+}
+async function importData(){
+  const rawText = prompt("粘贴备份数据文本导入（将覆盖当前所有数据）：","");
+  if(!rawText) return;
+  try{
+    const parsed = JSON.parse(rawText);
+    if(!Array.isArray(parsed)) throw new Error("数据格式错误");
+    groupList = parsed;
+    saveToLocal();
+    currentGroupId = groupList[0].id;
+    renderGroupTabs();
+    switchGroup(currentGroupId);
+    alert("✅导入成功");
+  }catch(e){
+    alert("❌导入失败，文本不是合法备份数据");
+  }
+}
+
+async function requestNotificationPerm(){
+  if(!('Notification' in window))return;
+  if(Notification.permission !== "granted" && Notification.permission !== "denied"){
+    await Notification.requestPermission();
+  }
+}
+requestNotificationPerm();
+function sendItemNotify(itemName){
+  if(!('Notification' in window) || Notification.permission !== 'granted')return;
+  new Notification("物品到期提醒",{body:`【${itemName}】已到期！`,icon:"data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><circle cx='50' cy='50' r='45' fill='%233b63b7'/></svg>"});
+}
+
+function tick(){
+  const now = Date.now();
+  const g = getCurrentGroup();
+  if(!g){requestAnimationFrame(tick);return;}
+  const offsetMs = getOffsetSeconds() * 1000;
+  const realNow = now + offsetMs;
+
+  for(const it of g.items){
+    const el = document.getElementById(`it-${it.id}`);
+    if(!el)continue;
+    const rowEl = el.closest('.item-row');
+    const diff = it.expireTs - realNow;
+    const diffSec = Math.floor(diff / 1000);
+
+    if(diffSec <= 0){
+      if(el.textContent !== "✅ 已到期"){
+        el.textContent = '✅ 已到期';
+        el.className = 'time-cell expire';
+        rowEl.classList.add('warning');
+        if(!notifiedItemIds.has(it.id)){
+          sendItemNotify(it.name);
+          notifiedItemIds.add(it.id);
+        }
+        needReorder = true;
+      }
+      continue;
+    }
+
+    if(diffSec <= WARNING_SEC) rowEl.classList.add('warning');
+    else rowEl.classList.remove('warning');
+    el.className = 'time-cell';
+    const h = Math.floor(diffSec / 3600);
+    const m = Math.floor((diffSec%3600)/60);
+    const s = diffSec%60;
+    el.textContent = `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`;
+  }
+
+  if(needReorder){
+    renderList();
+    needReorder = false;
+  }
+  requestAnimationFrame(tick);
+}
+
+if('serviceWorker' in navigator){
+  const swCode = `self.addEventListener('install',e=>self.skipWaiting());self.addEventListener('activate',e=>e.waitUntil(self.clients.claim()));self.addEventListener('fetch',e=>e.respondWith(fetch(e.request).catch(()=>caches.match(e.request))))`;
+  const swBlob = new Blob([swCode],{type:"application/javascript"});
+  const swUrl = URL.createObjectURL(swBlob);
+  navigator.serviceWorker.register(swUrl).catch(err=>console.log("SW本地提示：本地打开可能注册失败，HTTPS环境正常"));
+}
+
+loadFromLocal();
+tick();
+</script>
+</body>
+</html>

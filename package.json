@@ -1,0 +1,13 @@
+{
+  "name": "stall-countdown-realtime",
+  "version": "1.0.0",
+  "description": "摊位倒计时 · 多人实时版（Node 零依赖后端 + 文件存储 + SSE 实时推送）",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "engines": {
+    "node": ">=14"
+  },
+  "license": "MIT"
+}
